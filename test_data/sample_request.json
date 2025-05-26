@@ -1,0 +1,63 @@
+{
+  "candidate": {
+    "competences": ["Python", "React", "Node.js", "PostgreSQL", "Git"],
+    "adresse": "Paris",
+    "mobilite": "hybrid",
+    "annees_experience": 4,
+    "salaire_souhaite": 55000,
+    "contrats_recherches": ["CDI"],
+    "disponibilite": "immediate"
+  },
+  "jobs": [
+    {
+      "id": "job001",
+      "titre": "Développeur Full Stack",
+      "entreprise": "TechVision",
+      "localisation": "Paris",
+      "type_contrat": "CDI",
+      "competences": ["Python", "React", "PostgreSQL"],
+      "experience": "3-5 ans",
+      "salaire": "50K-60K€",
+      "politique_remote": "hybrid"
+    },
+    {
+      "id": "job002",
+      "titre": "Développeur Backend Python",
+      "entreprise": "DataCorp",
+      "localisation": "Lyon",
+      "type_contrat": "CDI",
+      "competences": ["Python", "Django", "PostgreSQL", "Redis"],
+      "experience": "4-6 ans",
+      "salaire": "55K-65K€",
+      "politique_remote": "remote"
+    },
+    {
+      "id": "job003",
+      "titre": "Développeur Frontend React",
+      "entreprise": "WebAgency",
+      "localisation": "Paris",
+      "type_contrat": "CDD",
+      "competences": ["React", "TypeScript", "CSS", "JavaScript"],
+      "experience": "2-4 ans",
+      "salaire": "45K-50K€",
+      "politique_remote": "presentiel"
+    },
+    {
+      "id": "job004",
+      "titre": "Ingénieur DevOps",
+      "entreprise": "CloudTech",
+      "localisation": "Remote",
+      "type_contrat": "CDI",
+      "competences": ["Docker", "Kubernetes", "AWS", "Python"],
+      "experience": "5-7 ans",
+      "salaire": "60K-75K€",
+      "politique_remote": "remote"
+    }
+  ],
+  "algorithm": "auto",
+  "options": {
+    "limit": 10,
+    "include_details": true,
+    "performance_mode": "balanced"
+  }
+}
