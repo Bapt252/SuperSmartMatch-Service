@@ -1,0 +1,50 @@
+# SuperSmartMatch Service - Docker Compose
+version: '3.8'
+
+services:
+  supersmartmatch:
+    build: .
+    ports:
+      - "5060:5060"
+    environment:
+      - FLASK_DEBUG=false
+      - DATABASE_URL=postgresql://nexten:nexten@postgres:5432/nexten
+      - REDIS_URL=redis://redis:6379/0
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - GOOGLE_MAPS_API_KEY=${GOOGLE_MAPS_API_KEY}
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - nexten-network
+    restart: unless-stopped
+    volumes:
+      - ./logs:/app/logs
+
+  postgres:
+    image: postgres:15
+    environment:
+      - POSTGRES_USER=nexten
+      - POSTGRES_PASSWORD=nexten
+      - POSTGRES_DB=nexten
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - nexten-network
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    volumes:
+      - redis_data:/data
+    networks:
+      - nexten-network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  nexten-network:
+    driver: bridge
