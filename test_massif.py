@@ -59,7 +59,7 @@ class SuperSmartMatchTester:
         
         # Patterns pour extraction automatique
         self.experience_patterns = [
-            r'(\d+)\s*(?:à|a|-)?\s*(\d+)?\s*an[s]?\s*(?:d\'|d'|de)?\s*(?:exp[eé]rience)?',
+            r'(\d+)\s*(?:à|a|-)?\s*(\d+)?\s*an[s]?\s*(?:d\'|de)?\s*(?:exp[eé]rience)?',
             r'(\d+)\s*années?\s*d\'exp[eé]rience',
             r'exp[eé]rience\s*:\s*(\d+)',
             r'(\d+)\s*ans\s*(?:minimum|mini|min)',
