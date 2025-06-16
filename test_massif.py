@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-SuperSmartMatch V2.1 - Script de Test Massif
+SuperSmartMatch V2.1 - Script de Test Massif CORRIGÉ
 Automatise les tests de matching CV vs Fiches de Poste
 Génère rapports complets CSV + HTML
 """
@@ -294,25 +294,27 @@ class SuperSmartMatchTester:
                 matches = [matches]  # Assure que c'est une liste
             
             for i, match in enumerate(matches):
-                # Gestion robuste des clés possibles
-                job_info = match.get("job", match.get("poste", {}))
+                # CORRECTION: Utilise la bonne clé pour le score
+                score = match.get("matching_score", match.get("score", 0))
                 
-                if not job_info and "score" in match:
-                    # Fallback : utilise les données des jobs originaux
-                    if i < len(result.get("jobs_data", [])):
-                        job_info = result["jobs_data"][i]
-                    else:
-                        job_info = {"filename": f"Job_{i+1}", "secteur": "unknown", "titre": "Poste Inconnu"}
+                # Gestion robuste des clés possibles pour les infos job
+                job_info = {
+                    "filename": match.get("filename", f"Job_{i+1}"),
+                    "secteur": match.get("secteur", "unknown"),
+                    "titre": match.get("titre", "Poste Inconnu")
+                }
                 
                 csv_data.append({
                     "CV": cv_name,
                     "CV_Secteur": result["cv"]["secteur"],
                     "CV_Experience": result["cv"]["annees_experience"],
-                    "Job": job_info.get("filename", f"Job_{i+1}"),
-                    "Job_Secteur": job_info.get("secteur", "unknown"),
-                    "Job_Titre": job_info.get("titre", "Poste Inconnu"),
-                    "Score": match.get("score", 0),
-                    "Détails": match.get("details", ""),
+                    "Job": job_info.get("filename"),
+                    "Job_Secteur": job_info.get("secteur"),
+                    "Job_Titre": job_info.get("titre"),
+                    "Score": score,  # CORRECTION: Score correct maintenant
+                    "Détails": match.get("explanation", match.get("details", "")),
+                    "Algorithme": match.get("algorithm", "enhanced-v2"),
+                    "Recommandations": "; ".join(match.get("recommendations", [])),
                     "Timestamp": timestamp
                 })
         
@@ -380,6 +382,7 @@ class SuperSmartMatchTester:
         <h1>🚀 SuperSmartMatch V2.1 - Rapport de Test Massif</h1>
         <p>Généré le {datetime.now().strftime("%d/%m/%Y à %H:%M:%S")}</p>
         <p>Durée totale: {time.time() - self.stats['start_time']:.1f} secondes</p>
+        <p>✅ <strong>CORRECTION APPLIQUÉE : Scores réels maintenant affichés !</strong></p>
     </div>
 
     <div class="stats">
@@ -483,6 +486,8 @@ class SuperSmartMatchTester:
         # Recommandations automatiques
         if avg_score < 40:
             html_content += "<li>Score moyen faible: vérifier la cohérence des secteurs détectés</li>"
+        elif avg_score >= 70:
+            html_content += "<li>✅ Excellent score moyen! SuperSmartMatch V2.1 Enhanced fonctionne parfaitement</li>"
         if self.stats["errors"] > 0:
             html_content += f"<li>{self.stats['errors']} erreurs détectées: vérifier les logs</li>"
         if len(set(item["CV_Secteur"] for item in csv_data)) < 3:
@@ -493,7 +498,7 @@ class SuperSmartMatchTester:
     </div>
 
     <footer style="margin-top: 50px; text-align: center; color: #7f8c8d;">
-        <p>Généré par SuperSmartMatch V2.1 Mass Tester - Enhanced Algorithm</p>
+        <p>Généré par SuperSmartMatch V2.1 Mass Tester - Enhanced Algorithm ✅ CORRIGÉ</p>
     </footer>
 </body>
 </html>
@@ -509,7 +514,7 @@ class SuperSmartMatchTester:
         """Lance le test massif complet"""
         self.stats["start_time"] = time.time()
         
-        print("\n🚀 DÉBUT DU TEST MASSIF SUPERSMARTMATCH V2.1")
+        print("\n🚀 DÉBUT DU TEST MASSIF SUPERSMARTMATCH V2.1 (VERSION CORRIGÉE)")
         print("=" * 60)
         
         # 1. Vérification API
@@ -572,9 +577,9 @@ class SuperSmartMatchTester:
         print(f"\n📊 Génération des rapports...")
         self.generate_reports(results)
         
-        # 7. Résumé final
+        # 7. Résumé final avec scores réels
         duration = time.time() - self.stats["start_time"]
-        print(f"\n✅ TEST MASSIF TERMINÉ!")
+        print(f"\n✅ TEST MASSIF TERMINÉ (VERSION CORRIGÉE)!")
         print(f"⏱️  Durée totale: {duration:.1f} secondes")
         print(f"📄 CVs traités: {self.stats['cvs_processed']}")
         print(f"📋 Jobs traités: {self.stats['jobs_processed']}")
@@ -583,11 +588,13 @@ class SuperSmartMatchTester:
         print(f"\n📊 Secteurs détectés:")
         for secteur, count in self.stats["secteurs_detected"].items():
             print(f"   {secteur}: {count} CVs")
+        
+        print(f"\n🎉 CORRECTION APPLIQUÉE: Les scores réels sont maintenant affichés!")
 
 
 def main():
     """Point d'entrée principal"""
-    print("🚀 SuperSmartMatch V2.1 - Mass Testing Tool")
+    print("🚀 SuperSmartMatch V2.1 - Mass Testing Tool (VERSION CORRIGÉE)")
     print("=" * 50)
     
     # Vérification des dépendances
