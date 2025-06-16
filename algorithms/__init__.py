@@ -1,1 +1,1 @@
-# Algorithms package for SuperSmartMatch
+# Algorithms module for SuperSmartMatch V3.0
