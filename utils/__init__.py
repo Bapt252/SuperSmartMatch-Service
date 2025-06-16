@@ -1,1 +1,1 @@
-# Utils package for SuperSmartMatch
+# Utils module for SuperSmartMatch V3.0
