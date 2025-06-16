@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Configuration du service SuperSmartMatch
+Configuration Settings - SuperSmartMatch V3.0
 """
 
 import os
@@ -9,162 +9,159 @@ from typing import Dict, Any
 
 class Config:
     """
-    Configuration principale du service
+    Configuration de base pour SuperSmartMatch V3.0
     """
     
     # Configuration Flask
-    SECRET_KEY = os.getenv('SECRET_KEY', 'supersmartmatch-dev-key-2025')
+    SECRET_KEY = os.getenv('SECRET_KEY', 'supersmartmatch-v3-enhanced-secret-key')
     DEBUG = os.getenv('FLASK_DEBUG', 'False').lower() == 'true'
     
-    # Configuration Base de données
-    DATABASE_URL = os.getenv(
-        'DATABASE_URL', 
-        'postgresql://user:password@localhost:5432/nexten'
-    )
-    
-    # Configuration Redis (Cache)
+    # Configuration base de données et cache
     REDIS_URL = os.getenv('REDIS_URL', 'redis://localhost:6379/0')
     
-    # Configuration APIs externes
-    OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
-    GOOGLE_MAPS_API_KEY = os.getenv('GOOGLE_MAPS_API_KEY')
+    # Configuration SuperSmartMatch
+    SUPERSMARTMATCH_VERSION = '3.0.0'
+    DEFAULT_ALGORITHM = 'enhanced-v3'  # V3.0 par défaut
     
-    # Configuration des algorithmes
-    DEFAULT_ALGORITHM = os.getenv('DEFAULT_ALGORITHM', 'auto')
-    ENABLE_CACHING = os.getenv('ENABLE_CACHING', 'True').lower() == 'true'
-    CACHE_TTL = int(os.getenv('CACHE_TTL', '3600'))  # 1 heure
+    # Limites et performances
+    MAX_JOBS_PER_REQUEST = int(os.getenv('MAX_JOBS_PER_REQUEST', '1000'))
+    MAX_EXECUTION_TIME_SECONDS = int(os.getenv('MAX_EXECUTION_TIME_SECONDS', '30'))
+    CACHE_TTL_SECONDS = int(os.getenv('CACHE_TTL_SECONDS', '3600'))
     
-    # Configuration de performance
-    MAX_JOBS_PER_REQUEST = int(os.getenv('MAX_JOBS_PER_REQUEST', '100'))
-    DEFAULT_RESULT_LIMIT = int(os.getenv('DEFAULT_RESULT_LIMIT', '10'))
-    
-    # Configuration de monitoring
-    ENABLE_METRICS = os.getenv('ENABLE_METRICS', 'True').lower() == 'true'
-    METRICS_RETENTION_DAYS = int(os.getenv('METRICS_RETENTION_DAYS', '30'))
-    
-    @staticmethod
-    def validate_config() -> Dict[str, Any]:
-        """
-        Valide la configuration et retourne les éléments manquants
-        """
-        missing = []
-        warnings = []
-        
-        if not Config.OPENAI_API_KEY:
-            warnings.append('OPENAI_API_KEY non configurée - Certains algorithmes ne fonctionneront pas')
-        
-        if not Config.GOOGLE_MAPS_API_KEY:
-            warnings.append('GOOGLE_MAPS_API_KEY non configurée - SmartMatch limité')
-        
-        return {
-            'valid': len(missing) == 0,
-            'missing': missing,
-            'warnings': warnings
-        }
-
-class AlgorithmConfig:
-    """
-    Configuration spécifique des algorithmes
-    """
-    
-    # Pondérations par défaut pour Enhanced Matching
-    ENHANCED_WEIGHTS = {
-        'junior': {
-            'skills': 0.25,
-            'experience': 0.20,
-            'location': 0.20,
-            'contract': 0.15,
-            'salary': 0.15,
-            'date': 0.05
+    # Configuration algorithmes
+    ALGORITHM_WEIGHTS = {
+        'enhanced-v3': {
+            'job_specificity_match': 0.35,
+            'sector_compatibility': 0.25,
+            'experience_relevance': 0.20,
+            'skills_match': 0.15,
+            'location_match': 0.05
         },
-        'confirmed': {
-            'skills': 0.30,
-            'location': 0.20,
-            'salary': 0.20,
-            'contract': 0.15,
-            'experience': 0.10,
-            'date': 0.05
-        },
-        'senior': {
-            'skills': 0.35,
-            'salary': 0.25,
-            'location': 0.15,
-            'contract': 0.10,
-            'experience': 0.05,
-            'date': 0.10
+        'enhanced-v2': {
+            'sector_compatibility': 0.40,
+            'skills_match': 0.25,
+            'experience_relevance': 0.20,
+            'location_match': 0.10,
+            'contract_match': 0.05
         }
     }
     
-    # Configuration SmartMatch
-    SMARTMATCH_CONFIG = {
-        'max_commute_time': 60,  # minutes
-        'enable_geocoding': True,
-        'distance_weight': 0.3
-    }
-    
-    # Configuration Semantic Analyzer
-    SEMANTIC_CONFIG = {
-        'similarity_threshold': 0.7,
-        'use_wordnet': True,
-        'enable_skill_groups': True
-    }
-    
-    # Règles d'auto-sélection
-    AUTO_SELECTION_RULES = {
-        'junior_developer': {
-            'experience_range': (0, 2),
-            'preferred_algorithm': 'enhanced',
-            'reason': 'Pondération adaptée aux profils juniors'
-        },
-        'senior_developer': {
-            'experience_range': (7, 50),
-            'preferred_algorithm': 'semantic',
-            'reason': 'Analyse fine des compétences pour les seniors'
-        },
-        'geo_sensitive': {
-            'max_commute_preference': 30,
-            'preferred_algorithm': 'smart-match',
-            'reason': 'Optimisé pour la géolocalisation'
-        },
-        'high_precision': {
-            'min_job_count': 50,
-            'preferred_algorithm': 'hybrid',
-            'reason': 'Précision maximale pour un grand nombre d\'offres'
-        }
-    }
-
-class PerformanceConfig:
-    """
-    Configuration de performance
-    """
-    
-    # Limites de taux
-    RATE_LIMIT_PER_MINUTE = int(os.getenv('RATE_LIMIT_PER_MINUTE', '100'))
-    RATE_LIMIT_PER_HOUR = int(os.getenv('RATE_LIMIT_PER_HOUR', '1000'))
-    
-    # Configuration du cache
-    CACHE_STRATEGIES = {
-        'fast': {
-            'enable_cache': True,
-            'ttl': 1800,  # 30 minutes
-            'compression': True
-        },
-        'balanced': {
-            'enable_cache': True,
-            'ttl': 3600,  # 1 heure
-            'compression': True
-        },
-        'accuracy': {
-            'enable_cache': False,
-            'ttl': 0,
-            'compression': False
-        }
-    }
+    # Configuration secteurs V3.0
+    SECTOR_ANALYSIS_ENABLED = True
+    JOB_SPECIFICITY_ENABLED = True
+    BLOCKING_FACTORS_ENABLED = True
     
     # Seuils de performance
     PERFORMANCE_THRESHOLDS = {
-        'response_time_warning_ms': 1000,
-        'response_time_critical_ms': 3000,
-        'memory_warning_mb': 512,
-        'memory_critical_mb': 1024
+        'excellent_ms': 1000,
+        'good_ms': 3000,
+        'acceptable_ms': 5000
     }
+    
+    # Configuration logging
+    LOG_LEVEL = os.getenv('LOG_LEVEL', 'INFO')
+    LOG_FORMAT = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    
+    # Configuration API
+    API_RATE_LIMIT = os.getenv('API_RATE_LIMIT', '100/hour')
+    CORS_ORIGINS = os.getenv('CORS_ORIGINS', '*').split(',')
+    
+    # Chemins et fichiers
+    BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    TEMPLATES_DIR = os.path.join(BASE_DIR, 'templates')
+    STATIC_DIR = os.path.join(BASE_DIR, 'static')
+    
+    @classmethod
+    def get_algorithm_config(cls, algorithm_name: str) -> Dict[str, Any]:
+        """Retourne la configuration d'un algorithme"""
+        return {
+            'weights': cls.ALGORITHM_WEIGHTS.get(algorithm_name, {}),
+            'version': cls.SUPERSMARTMATCH_VERSION,
+            'performance_thresholds': cls.PERFORMANCE_THRESHOLDS
+        }
+    
+    @classmethod
+    def get_feature_flags(cls) -> Dict[str, bool]:
+        """Retourne les feature flags activés"""
+        return {
+            'sector_analysis_v3': cls.SECTOR_ANALYSIS_ENABLED,
+            'job_specificity_v3': cls.JOB_SPECIFICITY_ENABLED,
+            'blocking_factors_v3': cls.BLOCKING_FACTORS_ENABLED,
+            'cache_enabled': bool(cls.REDIS_URL),
+            'debug_mode': cls.DEBUG
+        }
+    
+    @classmethod
+    def validate_config(cls) -> Dict[str, Any]:
+        """Valide la configuration et retourne les erreurs"""
+        validation_results = {
+            'is_valid': True,
+            'errors': [],
+            'warnings': []
+        }
+        
+        # Validation des limites
+        if cls.MAX_JOBS_PER_REQUEST > 10000:
+            validation_results['warnings'].append(
+                "MAX_JOBS_PER_REQUEST très élevé, performances possiblement dégradées"
+            )
+        
+        if cls.MAX_EXECUTION_TIME_SECONDS > 60:
+            validation_results['warnings'].append(
+                "MAX_EXECUTION_TIME_SECONDS très élevé, risque de timeout"
+            )
+        
+        # Validation des algorithmes
+        if cls.DEFAULT_ALGORITHM not in cls.ALGORITHM_WEIGHTS:
+            validation_results['errors'].append(
+                f"DEFAULT_ALGORITHM '{cls.DEFAULT_ALGORITHM}' non configuré dans ALGORITHM_WEIGHTS"
+            )
+            validation_results['is_valid'] = False
+        
+        return validation_results
+
+class DevelopmentConfig(Config):
+    """Configuration pour le développement"""
+    DEBUG = True
+    LOG_LEVEL = 'DEBUG'
+    CACHE_TTL_SECONDS = 300  # Cache plus court en dev
+    MAX_JOBS_PER_REQUEST = 100  # Limite réduite pour tests
+
+class ProductionConfig(Config):
+    """Configuration pour la production"""
+    DEBUG = False
+    LOG_LEVEL = 'INFO'
+    SECRET_KEY = os.getenv('SECRET_KEY')  # Obligatoire en production
+    
+    # Validation en production
+    @classmethod
+    def validate_production_config(cls):
+        """Validation spécifique production"""
+        if not os.getenv('SECRET_KEY'):
+            raise ValueError("SECRET_KEY obligatoire en production")
+        
+        if cls.DEBUG:
+            raise ValueError("DEBUG doit être False en production")
+
+class TestingConfig(Config):
+    """Configuration pour les tests"""
+    TESTING = True
+    DEBUG = True
+    CACHE_TTL_SECONDS = 60  # Cache très court pour tests
+    REDIS_URL = None  # Pas de Redis en test
+    MAX_JOBS_PER_REQUEST = 10  # Très limité pour tests
+
+# Configuration par environnement
+config_by_env = {
+    'development': DevelopmentConfig,
+    'production': ProductionConfig,
+    'testing': TestingConfig,
+    'default': Config
+}
+
+def get_config(env_name: str = None) -> Config:
+    """Retourne la configuration selon l'environnement"""
+    if env_name is None:
+        env_name = os.getenv('FLASK_ENV', 'default')
+    
+    return config_by_env.get(env_name, Config)
