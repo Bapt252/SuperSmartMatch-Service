@@ -197,7 +197,7 @@ class EnhancedSectorAnalyzerV3:
                     'management_operationnel': {
                         'jobs': {
                             'chef_equipe': {
-                                'keywords': ['chef d\\'équipe', 'team leader', 'responsable équipe'],
+                                'keywords': ["chef d'équipe", 'team leader', 'responsable équipe'],
                                 'required_combinations': [['chef', 'équipe'], ['team', 'leader'], ['responsable', 'équipe']],
                                 'level_indicators': {'confirmé': ['chef'], 'senior': ['responsable']},
                                 'skills': ['encadrement', 'coordination', 'planning', 'objectifs']
@@ -526,6 +526,21 @@ class EnhancedSectorAnalyzerV3:
             return "transition_intersectorielle"
         else:
             return "reconversion_complète"
+    
+    def _get_enhanced_difficulty_level(self, cv_analysis: EnhancedSectorAnalysisResult,
+                                     job_analysis: EnhancedSectorAnalysisResult,
+                                     candidate_experience: int) -> str:
+        """Détermine le niveau de difficulté de la transition"""
+        compatibility = self.get_enhanced_compatibility_score(cv_analysis, job_analysis)
+        
+        if compatibility >= 0.8:
+            return "facile"
+        elif compatibility >= 0.6:
+            return "modéré"
+        elif compatibility >= 0.4:
+            return "difficile"
+        else:
+            return "très_difficile"
     
     def _identify_specific_challenges(self, cv_analysis: EnhancedSectorAnalysisResult,
                                     job_analysis: EnhancedSectorAnalysisResult) -> List[str]:
