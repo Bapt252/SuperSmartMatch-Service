@@ -282,27 +282,51 @@ class SuperSmartMatchTester:
         csv_data = []
         for result in results:
             cv_name = result["cv"]["filename"]
-            for match in result["matches"]:
+            
+            # Debug: affichage de la structure si problème
+            if "matches" not in result:
+                print(f"⚠️  Pas de matches pour {cv_name}")
+                continue
+            
+            # Traite chaque match
+            matches = result.get("matches", [])
+            if isinstance(matches, dict):
+                matches = [matches]  # Assure que c'est une liste
+            
+            for i, match in enumerate(matches):
+                # Gestion robuste des clés possibles
+                job_info = match.get("job", match.get("poste", {}))
+                
+                if not job_info and "score" in match:
+                    # Fallback : utilise les données des jobs originaux
+                    if i < len(result.get("jobs_data", [])):
+                        job_info = result["jobs_data"][i]
+                    else:
+                        job_info = {"filename": f"Job_{i+1}", "secteur": "unknown", "titre": "Poste Inconnu"}
+                
                 csv_data.append({
                     "CV": cv_name,
                     "CV_Secteur": result["cv"]["secteur"],
                     "CV_Experience": result["cv"]["annees_experience"],
-                    "Job": match["job"]["filename"],
-                    "Job_Secteur": match["job"]["secteur"],
-                    "Job_Titre": match["job"]["titre"],
-                    "Score": match["score"],
+                    "Job": job_info.get("filename", f"Job_{i+1}"),
+                    "Job_Secteur": job_info.get("secteur", "unknown"),
+                    "Job_Titre": job_info.get("titre", "Poste Inconnu"),
+                    "Score": match.get("score", 0),
                     "Détails": match.get("details", ""),
                     "Timestamp": timestamp
                 })
         
         # Export CSV
-        df = pd.DataFrame(csv_data)
-        csv_file = f"resultats_matching_{timestamp}.csv"
-        df.to_csv(csv_file, index=False, encoding='utf-8')
-        print(f"📊 CSV exporté: {csv_file}")
-        
-        # Génère le rapport HTML
-        self.generate_html_report(results, csv_data, timestamp)
+        if csv_data:
+            df = pd.DataFrame(csv_data)
+            csv_file = f"resultats_matching_{timestamp}.csv"
+            df.to_csv(csv_file, index=False, encoding='utf-8')
+            print(f"📊 CSV exporté: {csv_file}")
+            
+            # Génère le rapport HTML
+            self.generate_html_report(results, csv_data, timestamp)
+        else:
+            print("❌ Aucune donnée à exporter")
 
     def generate_html_report(self, results: List[Dict], csv_data: List[Dict], timestamp: str) -> None:
         """Génère un rapport HTML détaillé"""
@@ -539,7 +563,8 @@ class SuperSmartMatchTester:
             if matching_result:
                 results.append({
                     "cv": cv,
-                    "matches": matching_result.get("matches", [])
+                    "matches": matching_result.get("matches", []),
+                    "jobs_data": jobs_data  # Ajoute référence pour debugging
                 })
                 self.stats["total_matches"] += len(jobs_data)
         
