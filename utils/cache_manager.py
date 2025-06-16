@@ -1,234 +1,179 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Gestion du cache pour SuperSmartMatch
+Cache Manager - Gestionnaire de cache pour SuperSmartMatch
 """
 
 import json
 import logging
 import time
 from typing import Any, Optional, Dict
-
-try:
-    import redis
-    REDIS_AVAILABLE = True
-except ImportError:
-    REDIS_AVAILABLE = False
-    redis = None
+from collections import defaultdict
 
 logger = logging.getLogger(__name__)
 
 class CacheManager:
     """
-    Gestionnaire de cache pour SuperSmartMatch
-    Supporte Redis et un cache en mémoire de fallback
+    Gestionnaire de cache avec fallback mémoire si Redis indisponible
     """
     
     def __init__(self, redis_url: Optional[str] = None):
         self.redis_client = None
-        self.memory_cache = {}  # Cache de fallback en mémoire
+        self.memory_cache = {}
         self.cache_stats = {
             'hits': 0,
             'misses': 0,
             'sets': 0,
             'errors': 0
         }
+        self.cache_type = 'memory'
         
-        # Initialisation de Redis si disponible
-        if REDIS_AVAILABLE and redis_url:
+        # Tentative de connexion Redis
+        if redis_url:
             try:
+                import redis
                 self.redis_client = redis.from_url(redis_url, decode_responses=True)
                 # Test de connexion
                 self.redis_client.ping()
-                logger.info("Cache Redis initialisé avec succès")
+                self.cache_type = 'redis'
+                logger.info("✅ Connexion Redis établie")
+            except ImportError:
+                logger.warning("Redis non installé, utilisation du cache mémoire")
             except Exception as e:
                 logger.warning(f"Impossible de se connecter à Redis: {e}. Utilisation du cache mémoire.")
-                self.redis_client = None
-        else:
-            if not REDIS_AVAILABLE:
-                logger.info("Redis non disponible. Utilisation du cache mémoire.")
-            else:
-                logger.info("Pas d'URL Redis fournie. Utilisation du cache mémoire.")
     
     def get(self, key: str) -> Optional[Any]:
-        """
-        Récupère une valeur du cache
-        
-        Args:
-            key: Clé de cache
-            
-        Returns:
-            Valeur mise en cache ou None si non trouvée
-        """
+        """Récupère une valeur du cache"""
         try:
-            # Tentative avec Redis d'abord
-            if self.redis_client:
-                cached_data = self.redis_client.get(key)
-                if cached_data:
+            if self.cache_type == 'redis' and self.redis_client:
+                value = self.redis_client.get(key)
+                if value:
                     self.cache_stats['hits'] += 1
-                    return json.loads(cached_data)
-            
-            # Fallback sur le cache mémoire
-            if key in self.memory_cache:
-                cache_entry = self.memory_cache[key]
-                
-                # Vérification de l'expiration
-                if cache_entry['expires_at'] > time.time():
-                    self.cache_stats['hits'] += 1
-                    return cache_entry['data']
+                    return json.loads(value)
                 else:
-                    # Suppression de l'entrée expirée
-                    del self.memory_cache[key]
-            
-            # Cache miss
-            self.cache_stats['misses'] += 1
-            return None
-            
+                    self.cache_stats['misses'] += 1
+                    return None
+            else:
+                # Cache mémoire
+                if key in self.memory_cache:
+                    cache_entry = self.memory_cache[key]
+                    # Vérifier expiration
+                    if cache_entry['expires_at'] > time.time():
+                        self.cache_stats['hits'] += 1
+                        return cache_entry['value']
+                    else:
+                        # Expiré
+                        del self.memory_cache[key]
+                        self.cache_stats['misses'] += 1
+                        return None
+                else:
+                    self.cache_stats['misses'] += 1
+                    return None
+        
         except Exception as e:
             logger.error(f"Erreur lors de la lecture du cache: {e}")
             self.cache_stats['errors'] += 1
             return None
     
     def set(self, key: str, value: Any, ttl: int = 3600) -> bool:
-        """
-        Stocke une valeur dans le cache
-        
-        Args:
-            key: Clé de cache
-            value: Valeur à mettre en cache
-            ttl: Durée de vie en secondes
-            
-        Returns:
-            True si le stockage a réussi
-        """
+        """Stocke une valeur dans le cache"""
         try:
-            serialized_value = json.dumps(value, default=str)
-            
-            # Stockage dans Redis si disponible
-            if self.redis_client:
-                self.redis_client.setex(key, ttl, serialized_value)
-            
-            # Stockage dans le cache mémoire
-            self.memory_cache[key] = {
-                'data': value,
-                'expires_at': time.time() + ttl
-            }
-            
-            # Nettoyage périodique du cache mémoire
-            if len(self.memory_cache) > 1000:
+            if self.cache_type == 'redis' and self.redis_client:
+                serialized_value = json.dumps(value, ensure_ascii=False)
+                result = self.redis_client.setex(key, ttl, serialized_value)
+                if result:
+                    self.cache_stats['sets'] += 1
+                    return True
+                else:
+                    self.cache_stats['errors'] += 1
+                    return False
+            else:
+                # Cache mémoire avec TTL
+                self.memory_cache[key] = {
+                    'value': value,
+                    'expires_at': time.time() + ttl,
+                    'created_at': time.time()
+                }
+                self.cache_stats['sets'] += 1
+                
+                # Nettoyage périodique du cache mémoire
                 self._cleanup_memory_cache()
-            
-            self.cache_stats['sets'] += 1
-            return True
-            
+                return True
+        
         except Exception as e:
             logger.error(f"Erreur lors de l'écriture du cache: {e}")
             self.cache_stats['errors'] += 1
             return False
     
     def delete(self, key: str) -> bool:
-        """
-        Supprime une entrée du cache
-        
-        Args:
-            key: Clé à supprimer
-            
-        Returns:
-            True si la suppression a réussi
-        """
+        """Supprime une clé du cache"""
         try:
-            # Suppression de Redis
-            if self.redis_client:
-                self.redis_client.delete(key)
-            
-            # Suppression du cache mémoire
-            if key in self.memory_cache:
-                del self.memory_cache[key]
-            
-            return True
-            
+            if self.cache_type == 'redis' and self.redis_client:
+                result = self.redis_client.delete(key)
+                return result > 0
+            else:
+                if key in self.memory_cache:
+                    del self.memory_cache[key]
+                    return True
+                return False
+        
         except Exception as e:
             logger.error(f"Erreur lors de la suppression du cache: {e}")
-            self.cache_stats['errors'] += 1
             return False
     
     def clear(self) -> bool:
-        """
-        Vide complètement le cache
-        
-        Returns:
-            True si le nettoyage a réussi
-        """
+        """Vide tout le cache"""
         try:
-            # Nettoyage de Redis
-            if self.redis_client:
+            if self.cache_type == 'redis' and self.redis_client:
                 self.redis_client.flushdb()
+            else:
+                self.memory_cache.clear()
             
-            # Nettoyage du cache mémoire
-            self.memory_cache.clear()
-            
-            logger.info("Cache vidé avec succès")
+            # Reset des stats
+            self.cache_stats = {
+                'hits': 0,
+                'misses': 0,
+                'sets': 0,
+                'errors': 0
+            }
             return True
-            
+        
         except Exception as e:
-            logger.error(f"Erreur lors du nettoyage du cache: {e}")
-            self.cache_stats['errors'] += 1
+            logger.error(f"Erreur lors du vidage du cache: {e}")
             return False
     
     def get_hit_rate(self) -> float:
-        """
-        Calcule le taux de cache hit
-        
-        Returns:
-            Taux de cache hit entre 0 et 1
-        """
+        """Calcule le taux de cache hits"""
         total_requests = self.cache_stats['hits'] + self.cache_stats['misses']
         if total_requests == 0:
             return 0.0
-        
-        return self.cache_stats['hits'] / total_requests
+        return (self.cache_stats['hits'] / total_requests) * 100
     
     def get_metrics(self) -> Dict[str, Any]:
-        """
-        Retourne les métriques du cache
-        
-        Returns:
-            Dictionnaire avec les statistiques du cache
-        """
+        """Retourne les métriques du cache"""
         total_requests = self.cache_stats['hits'] + self.cache_stats['misses']
-        hit_rate = self.get_hit_rate()
         
         metrics = {
-            'backend': 'redis' if self.redis_client else 'memory',
+            'cache_type': self.cache_type,
             'total_requests': total_requests,
-            'cache_hits': self.cache_stats['hits'],
-            'cache_misses': self.cache_stats['misses'],
-            'hit_rate': round(hit_rate, 3),
-            'hit_rate_percent': round(hit_rate * 100, 1),
+            'hits': self.cache_stats['hits'],
+            'misses': self.cache_stats['misses'],
             'sets': self.cache_stats['sets'],
             'errors': self.cache_stats['errors'],
-            'memory_cache_size': len(self.memory_cache)
+            'hit_rate_percent': self.get_hit_rate(),
+            'status': 'healthy' if self.cache_stats['errors'] < 5 else 'degraded'
         }
         
-        # Métriques Redis supplémentaires si disponible
-        if self.redis_client:
-            try:
-                redis_info = self.redis_client.info()
-                metrics['redis_info'] = {
-                    'connected_clients': redis_info.get('connected_clients', 0),
-                    'used_memory_human': redis_info.get('used_memory_human', 'N/A'),
-                    'keyspace_hits': redis_info.get('keyspace_hits', 0),
-                    'keyspace_misses': redis_info.get('keyspace_misses', 0)
-                }
-            except Exception as e:
-                logger.warning(f"Impossible de récupérer les infos Redis: {e}")
+        if self.cache_type == 'memory':
+            metrics.update({
+                'memory_cache_size': len(self.memory_cache),
+                'memory_cache_keys': list(self.memory_cache.keys())[:10]  # Première 10 clés
+            })
         
         return metrics
     
-    def _cleanup_memory_cache(self) -> None:
-        """
-        Nettoie le cache mémoire des entrées expirées
-        """
+    def _cleanup_memory_cache(self):
+        """Nettoie le cache mémoire des entrées expirées"""
         current_time = time.time()
         expired_keys = [
             key for key, entry in self.memory_cache.items()
@@ -238,64 +183,50 @@ class CacheManager:
         for key in expired_keys:
             del self.memory_cache[key]
         
-        logger.debug(f"Nettoyage du cache mémoire: {len(expired_keys)} entrées expirées supprimées")
+        # Limite la taille du cache mémoire (max 1000 entrées)
+        if len(self.memory_cache) > 1000:
+            # Supprime les plus anciennes
+            sorted_keys = sorted(
+                self.memory_cache.keys(),
+                key=lambda k: self.memory_cache[k]['created_at']
+            )
+            keys_to_remove = sorted_keys[:100]  # Supprime les 100 plus anciennes
+            for key in keys_to_remove:
+                del self.memory_cache[key]
     
     def health_check(self) -> Dict[str, Any]:
-        """
-        Vérifie l'état de santé du cache
-        
-        Returns:
-            Dictionnaire avec l'état de santé
-        """
+        """Vérification de santé du cache"""
         health = {
-            'status': 'healthy',
-            'backend': 'memory',
-            'redis_available': False,
-            'memory_cache_functional': True
+            'cache_type': self.cache_type,
+            'is_healthy': True,
+            'error_rate': 0.0,
+            'response_time_ms': 0.0
         }
         
-        # Test de Redis
-        if self.redis_client:
-            try:
-                self.redis_client.ping()
-                health['redis_available'] = True
-                health['backend'] = 'redis'
-            except Exception as e:
-                health['redis_available'] = False
-                health['redis_error'] = str(e)
-                health['status'] = 'degraded'
+        # Test de performance
+        start_time = time.time()
+        test_key = f"health_check_{int(time.time())}"
+        test_value = {"test": "data", "timestamp": time.time()}
         
-        # Test du cache mémoire
         try:
-            test_key = f"health_check_{int(time.time())}"
-            test_value = {'test': True}
-            
             # Test set/get
             self.set(test_key, test_value, ttl=10)
-            retrieved_value = self.get(test_key)
-            
-            if retrieved_value != test_value:
-                health['memory_cache_functional'] = False
-                health['status'] = 'unhealthy'
-            
-            # Nettoyage
+            retrieved = self.get(test_key)
             self.delete(test_key)
             
+            if retrieved != test_value:
+                health['is_healthy'] = False
+                health['error'] = "Set/Get test failed"
+            
+            health['response_time_ms'] = (time.time() - start_time) * 1000
+            
         except Exception as e:
-            health['memory_cache_functional'] = False
-            health['memory_cache_error'] = str(e)
-            health['status'] = 'unhealthy'
+            health['is_healthy'] = False
+            health['error'] = str(e)
+        
+        # Calcul du taux d'erreur
+        total_operations = sum(self.cache_stats.values())
+        if total_operations > 0:
+            health['error_rate'] = (self.cache_stats['errors'] / total_operations) * 100
         
         return health
-    
-    def reset_stats(self) -> None:
-        """
-        Remet à zéro les statistiques du cache
-        """
-        self.cache_stats = {
-            'hits': 0,
-            'misses': 0,
-            'sets': 0,
-            'errors': 0
-        }
-        logger.info("Statistiques du cache remises à zéro")
